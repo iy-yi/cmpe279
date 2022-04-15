@@ -6,8 +6,11 @@
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <string.h>
+#include <pwd.h>
 
-#define PORT 80
+
+#define PORT 8080
+
 int main(int argc, char const *argv[])
 {
     int server_fd, new_socket, valread;
@@ -16,6 +19,10 @@ int main(int argc, char const *argv[])
     int addrlen = sizeof(address);
     char buffer[1024] = {0};
     char *hello = "Hello from server";
+
+    struct passwd* userId;
+    pid_t childPid;
+    int status;
 
     // Show ASLR
     printf("execve=0x%p\n", execve);
@@ -27,8 +34,11 @@ int main(int argc, char const *argv[])
         exit(EXIT_FAILURE);
     }
 
-    // Attaching socket to port 80
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
+    // Attaching socket to port 8080
+    // change for MacOS
+    // if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
+                                                //   &opt, sizeof(opt)))
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR,
                                                   &opt, sizeof(opt)))
     {
         perror("setsockopt");
@@ -38,7 +48,7 @@ int main(int argc, char const *argv[])
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons( PORT );
 
-    // Forcefully attaching socket to the port 80
+    // Forcefully attaching socket to the port
     if (bind(server_fd, (struct sockaddr *)&address,
                                  sizeof(address))<0)
     {
@@ -56,9 +66,30 @@ int main(int argc, char const *argv[])
         perror("accept");
         exit(EXIT_FAILURE);
     }
-    valread = read( new_socket , buffer, 1024);
-    printf("%s\n",buffer );
-    send(new_socket , hello , strlen(hello) , 0 );
-    printf("Hello message sent\n");
+
+    childPid = fork();
+    if (childPid == 0) {
+        userId = getpwnam("nobody");
+        if (userId == NULL) {
+            printf("Cannot get uid for nobody user.\n");
+            return 0;
+        }
+        status = setuid(userId -> pw_uid);
+        if (status == 0) {
+            valread = read( new_socket , buffer, 1024);
+            printf("%s\n",buffer );
+            send(new_socket , hello , strlen(hello) , 0 );
+            printf("Hello message sent\n");
+        } else {
+            printf("Fail to drop privileges\n");
+            return -1;
+        }
+    } else if (childPid > 0) {
+         wait(NULL);
+         printf("Parent process\n");
+    } else {
+        printf("Fail to fork\n");
+        return -1;
+    }
     return 0;
 }
