@@ -1,5 +1,5 @@
 # CMPE 279
-#### Yi Jin
+### Yi Jin
 015273219
 
 Instructions to run:

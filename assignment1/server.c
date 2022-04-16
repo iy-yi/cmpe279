@@ -71,8 +71,8 @@ int main(int argc, char const *argv[])
     if (childPid == 0) {
         userId = getpwnam("nobody");
         if (userId == NULL) {
-            printf("Cannot get uid for nobody user.\n");
-            return 0;
+            printf("Cannot get nobody user\n");
+            exit(EXIT_FAILURE);
         }
         status = setuid(userId -> pw_uid);
         if (status == 0) {
@@ -81,15 +81,16 @@ int main(int argc, char const *argv[])
             send(new_socket , hello , strlen(hello) , 0 );
             printf("Hello message sent\n");
         } else {
-            printf("Fail to drop privileges\n");
-            return -1;
+            perror("drop privileges");
+            exit(EXIT_FAILURE);
         }
     } else if (childPid > 0) {
          wait(NULL);
-         printf("Parent process\n");
+        //  printf("Parent process\n");
     } else {
-        printf("Fail to fork\n");
-        return -1;
+        perror("fork");
+        exit(EXIT_FAILURE);
     }
+    while(wait(NULL) > 0);
     return 0;
 }
